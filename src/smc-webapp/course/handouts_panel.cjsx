@@ -81,6 +81,7 @@ exports.HandoutsPanel = rclass
                 num_omitted   = {num_omitted}
                 project_id    = {@props.project_id}
                 handouts      = {@props.handouts}
+                add_handouts  = {(paths)=>console.log(paths)}
             />
 
         <Panel header={header}>
@@ -109,6 +110,7 @@ HandoutsToolBar = rclass
         num_omitted   : rtypes.number
         project_id    : rtypes.string
         handouts      : rtypes.object
+        add_handouts  : rtypes.func      # should expect an array of paths
 
     getInitialState : ->
         add_is_searching : false
@@ -164,7 +166,7 @@ HandoutsToolBar = rclass
             </Col>
             <Col md=5>
                 <MultipleAddSearch
-                    add_selected   = {(added)=>console.log("ADDED: ", added)}
+                    add_selected   = {@props.add_handouts}
                     do_search      = {@do_add_search}
                     is_searching   = {@state.add_is_searching}
                     item_name      = {"handout"}

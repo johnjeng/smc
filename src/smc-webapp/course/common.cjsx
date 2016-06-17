@@ -367,7 +367,6 @@ exports.StudentAssignmentInfo = rclass
             </Col>
         </Row>
 
-
 # Multiple result selector
 # use on_change and search to control the search bar
 exports.MultipleAddSearch = rclass
@@ -386,10 +385,13 @@ exports.MultipleAddSearch = rclass
 
     getInitialState : ->
         selected_items : '' # currently selected options
+        show_selector : false
+
+    componentWillReceiveProps : (newProps) ->
+        @setState(show_selector : newProps.search_results?)
 
     clear_and_focus_search_input : ->
-        console.log('this one')
-        @setState(selected_items:undefined)
+        @setState(show_selector:false)
         @refs.search_input.clear_and_focus_search_input()
 
     search_button : ->
@@ -430,11 +432,12 @@ exports.MultipleAddSearch = rclass
         <div>
             <SearchInput
                 ref         = 'search_input'
+                default_value = ''
                 placeholder = "Add #{@props.item_name} by folder name (enter to see available folders)..."
                 on_submit   = {@props.do_search}
-                on_escape   = {=>@setState(search:'', selected_items:undefined)}
+                on_escape   = {@clear_and_focus_search_input}
                 autoFocus   = {true}
                 buttonAfter = {@search_button()}
             />
-            {@render_add_selector() if @props.search_results?}
+            {@render_add_selector() if @state.show_selector}
          </div>
