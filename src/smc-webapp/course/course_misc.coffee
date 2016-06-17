@@ -66,7 +66,7 @@ exports.order_list = (opts) ->
     list = y.sort compare_function
 
     if include_deleted
-        list = sorted.concat(sorted_deleted)
+        list = list.concat(sorted_deleted)
 
     return {list:list, num_deleted:sorted_deleted.length}
 

@@ -115,8 +115,9 @@ HandoutsToolBar = rclass
     getInitialState : ->
         add_is_searching : false
 
+    # Should the client call really be here?
     do_add_search : (search) ->
-        if @state.add_is_searching # already searching
+        if @state.add_is_searching
             return
         @setState(add_is_searching:true)
         salvus_client.find_directories
@@ -126,15 +127,16 @@ HandoutsToolBar = rclass
                 if err
                     @setState(add_is_searching:false, err:err, add_select:undefined)
                 else
-                    @setState(add_is_searching:false, add_search_results:@filter_results(resp.directories, search))
+                    @setState(add_is_searching:false, add_search_results:@filter_results(resp.directories, search, @props.handouts))
 
-    filter_results : (directories, search) ->
+    # TODO: see if this is common to assignments and students
+    filter_results : (directories, search, handouts) ->
         if directories.length > 0
             # Omit any -collect directory (unless explicitly searched for).
             # Omit any currently assigned directory, or any subdirectory of any
             # assigned directory.
             omit_prefix = []
-            @props.handouts.map (val, key) =>
+            handouts.map (val, key) =>
                 path = val.get('path')
                 if path  # path might not be set in case something went wrong (this has been hit in production)
                     omit_prefix.push(path)
