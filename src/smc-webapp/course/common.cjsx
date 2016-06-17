@@ -375,13 +375,14 @@ exports.MultipleAddSearch = rclass
         add_selected     : rtypes.func.isRequired   # Submit user selected results
         do_search        : rtypes.func.isRequired   # Submit search query
         is_searching     : rtypes.bool.isRequired   # whether or not it is asking the backend for the result of a search
-        placeholder      : rtypes.string
         err              : rtypes.object            # Search error
-        search_results   : rtypes.object            # contents to put in the selection box after getting search result back
+        search_results   : rtypes.array             # contents to put in the selection box after getting search result back
         real_time        : rtypes.bool              # Controls whether add_selected is called on submit or on change
+        item_name        : rtypes.string
 
     getDefaultProps : ->
         real_time        : false
+        item_name        : 'results'
 
     getInitialState : ->
         selected_items : '' # currently selected options
@@ -408,16 +409,21 @@ exports.MultipleAddSearch = rclass
                 <Icon name="search" />
             </Button>
 
+    add_button_clicked : (e) ->
+        e.preventDefault()
+        @props.add_selected(@state.selected_items)
+
     render_results_list : ->
         for item in @props.search_results
             <option key={item} value={item} label={item}>{item}</option>
 
+    # TODO: Make the Add selected Button like the one in students_panel!
     render_add_selector : ->
         <div>
-            <Input type='select' ref="selector" size=5 onChange={=>@setState(selected_items : @refs.selector.getValue())}>
+            <Input type='select' multiple ref="selector" size=5 rows=10 onChange={=>@setState(selected_items : @refs.selector.getValue())}>
                 {@render_results_list()}
             </Input>
-            <Button disabled={not @state.selected_items} onClick={@props.add_selected}><Icon name="plus" /> Add selected {@props.item_name}</Button>
+            <Button disabled={not @state.selected_items} onClick={@add_button_clicked}><Icon name="plus" /> Add selected {@props.item_name}</Button>
         </div>
 
     render : ->

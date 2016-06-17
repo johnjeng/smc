@@ -1,6 +1,7 @@
 # SMC libraries
 misc = require('smc-util/misc')
 {defaults, required} = misc
+{salvus_client} = require('../salvus_client')
 
 # React Libraries
 {React, rclass, rtypes} = require('../smc-react')
@@ -75,9 +76,11 @@ exports.HandoutsPanel = rclass
 
         header =
             <HandoutsToolBar
-                search={@state.search}
-                search_change={(value) => @setState(search:value)}
-                num_omitted={num_omitted}
+                search        = {@state.search}
+                search_change = {(value) => @setState(search:value)}
+                num_omitted   = {num_omitted}
+                project_id    = {@props.project_id}
+                handouts      = {@props.handouts}
             />
 
         <Panel header={header}>
@@ -104,25 +107,26 @@ HandoutsToolBar = rclass
         search        : rtypes.string
         search_change : rtypes.func
         num_omitted   : rtypes.number
+        project_id    : rtypes.string
+        handouts      : rtypes.object
 
     getInitialState : ->
-        add_searching : false
+        add_is_searching : false
 
-    do_add_search : (search) =>
-        if @state.add_searching # already searching
+    do_add_search : (search) ->
+        if @state.add_is_searching # already searching
             return
-        search = search.trim()
-        @setState(add_searching:true)
+        @setState(add_is_searching:true)
         salvus_client.find_directories
             project_id : @props.project_id
-            query      : "*#{search}*"
+            query      : "*#{search.trim()}*"
             cb         : (err, resp) =>
                 if err
-                    @setState(add_searching:false, err:err, add_select:undefined)
+                    @setState(add_is_searching:false, err:err, add_select:undefined)
                 else
-                    @setState(add_searching:false, add_search_results:@filter_results(resp.directories))
+                    @setState(add_is_searching:false, add_search_results:@filter_results(resp.directories, search))
 
-    filter_results : (directories) ->
+    filter_results : (directories, search) ->
         if directories.length > 0
             # Omit any -collect directory (unless explicitly searched for).
             # Omit any currently assigned directory, or any subdirectory of any
@@ -161,11 +165,11 @@ HandoutsToolBar = rclass
             <Col md=5>
                 <MultipleAddSearch
                     add_selected   = {(added)=>console.log("ADDED: ", added)}
-                    do_search      = {(search)=>console.log(search)}
-                    is_searching   = {false}
+                    do_search      = {@do_add_search}
+                    is_searching   = {@state.add_is_searching}
                     item_name      = {"handout"}
                     err            = {undefined}
-                    search_results = {undefined}
+                    search_results = {@state.add_search_results}
                  />
             </Col>
         </Row>
