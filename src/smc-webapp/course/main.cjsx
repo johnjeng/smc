@@ -64,6 +64,7 @@ schema = require('smc-util/schema')
 #{CourseStore} = require('./course_editor_components/store')
 {StudentsPanel} = require('./students_panel')
 {AssignmentsPanel} = require('./assignments_panel')
+{HandoutsPanel} = require('./handouts_panel')
 {SettingsPanel} = require('./settings_panel')
 {SharedProjectPanel} = require('./shared_project_panel')
 {STEPS, previous_step, step_direction, step_verb, step_ready} = require('./common.cjsx')
@@ -1522,7 +1523,7 @@ exports.init_redux = init_redux = (redux, course_project_id, course_filename) ->
     return # don't return syncdb above
 
 CourseEditor = (name) -> rclass
-    displayName : "CourseEditor"
+    displayName : "CourseEditor-Main"
 
     reduxProps :
         "#{name}" :
@@ -1609,6 +1610,13 @@ CourseEditor = (name) -> rclass
         else
             return <Loading />
 
+    render_handouts : ->
+        if @props.redux? and @props.assignments? and @props.user_map? and @props.students?
+            <HandoutsPanel redux={@props.redux} handouts={@props.assignments}
+                name={@props.name} project_id={@props.project_id} user_map={@props.user_map} students={@props.students} />
+        else
+            return <Loading />
+
     render_settings : ->
         if @props.redux? and @props.settings?
             <SettingsPanel redux={@props.redux} settings={@props.settings}
@@ -1641,6 +1649,10 @@ CourseEditor = (name) -> rclass
                 <Tab eventKey={'assignments'} title={<AssignmentsPanel.Header n={@num_assignments()}/>}>
                     <div style={marginTop:'8px'}></div>
                     {@render_assignments()}
+                </Tab>
+                <Tab eventKey={'handouts'} title={<HandoutsPanel.Header n={@num_assignments()}/>}>
+                    <div style={marginTop:'8px'}></div>
+                    {@render_handouts()}
                 </Tab>
                 <Tab eventKey={'settings'} title={<SettingsPanel.Header />}>
                     <div style={marginTop:'8px'}></div>

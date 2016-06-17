@@ -76,6 +76,7 @@ exports.step_ready = (step, n) ->
         when 'peer_collect'
             return ' who should have peer graded it'
 
+# I don't think this is used anywhere...
 exports.DirectoryLink = rclass
     displayName : "DirectoryLink"
 
@@ -365,3 +366,76 @@ exports.StudentAssignmentInfo = rclass
                 </Row>
             </Col>
         </Row>
+
+###
+# Multiple result selector
+# use on_change and search to control the search bar
+exports.MultipleAddSearch = rclass
+    propTypes :
+        add_selected     : rtypes.func.isRequired   # Submit user selected results
+        do_search        : rtypes.func.isRequired   # Submit search query
+        is_searching     : rtypes.bool.isRequired   # whether or not it is asking the backend for the result of a search
+        err              : rtypes.object            # Search error
+        search_results   : rtypes.object            # contents to put in the selection box after getting search result back
+        real_time        : rtypes.bool              # Controls whether add_selected is called on submit or on change
+
+    getDefaultProps : ->
+        err              : undefined
+        search           : ''
+        on_change        : @_on_search_change
+        search_results   : {}
+        real_time        : 'false'
+
+    getInitialState : ->
+        search         : '' # search query in box for adding new assignment
+        selected_items : '' # currently selected options
+
+    clear_and_focus_search_input : ->
+        @setState(search : '', add_select:undefined, add_selected:'')
+        @refs.assignment_add_input.getInputDOMNode().focus()
+
+    assignment_add_search_button : ->
+        if @props.is_searching
+            # Currently doing a search, so show a spinner
+            <Button>
+                <Icon name="circle-o-notch" spin />
+            </Button>
+        else if @props.search_results?
+            # There is something in the selection box -- so only action is to clear the search box.
+            <Button onClick={@clear_and_focus_assignment_add_search_input}>
+                <Icon name="times-circle" />
+            </Button>
+        else
+            # Waiting for user to start a search
+            <Button onClick={@props.do_search}>
+                <Icon name="search" />
+            </Button>
+
+    render_results_list : ->
+        for item in @props.search_results
+            <option key={item} value={item} label={item}>{item}</option>
+
+    render_add_selector : ->
+        <div>
+            <Input type='select' ref="selector" size=5 onChange={=>@setState(selected_items : @refs.selector.getValue())}>
+                {@render_results_list()}
+            </Input>
+            <Button disabled={not @state.selected_items} onClick={@props.add_selected}><Icon name="plus" /> Add selected assignment</Button>
+        </div>
+
+    render : ->
+        <div>
+            <form onSubmit={@do_add_search}>
+                <Input
+                    ref         = 'assignment_add_input'
+                    type        = 'text'
+                    placeholder = "Add assignment by folder name (enter to see available folders)..."
+                    value       = {@state.add_search}
+                    buttonAfter = {@assignment_add_search_button()}
+                    onChange    = {=>@setState(add_select:undefined, add_search:@refs.assignment_add_input.getValue())}
+                    onKeyDown   = {(e)=>if e.keyCode==27 then @setState(add_search:'', add_select:undefined)}
+                />
+            </form>
+            {@render_add_selector() if @state.add_select?}
+         </div>
+###
