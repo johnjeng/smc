@@ -9,6 +9,7 @@ misc = require('smc-util/misc')
 # SMC and course components
 course_misc = require('./course_misc')
 styles = require('./common_styles')
+{MultipleAddSearch} = require('./common')
 {Icon, Tip, SearchInput} = require('../r_misc')
 
 exports.HandoutsPanel = rclass
@@ -97,6 +98,7 @@ exports.HandoutsPanel.Header = rclass
             </span>
         </Tip>
 
+# State here is messy AF
 HandoutsToolBar = rclass
     propTypes :
         search        : rtypes.string
@@ -104,8 +106,45 @@ HandoutsToolBar = rclass
         num_omitted   : rtypes.number
 
     getInitialState : ->
-        add_search : rtypes.string
-        add_select : rtypes.object
+        add_searching : false
+
+    do_add_search : (search) =>
+        if @state.add_searching # already searching
+            return
+        search = search.trim()
+        @setState(add_searching:true)
+        salvus_client.find_directories
+            project_id : @props.project_id
+            query      : "*#{search}*"
+            cb         : (err, resp) =>
+                if err
+                    @setState(add_searching:false, err:err, add_select:undefined)
+                else
+                    @setState(add_searching:false, add_search_results:@filter_results(resp.directories))
+
+    filter_results : (directories) ->
+        if directories.length > 0
+            # Omit any -collect directory (unless explicitly searched for).
+            # Omit any currently assigned directory, or any subdirectory of any
+            # assigned directory.
+            omit_prefix = []
+            @props.handouts.map (val, key) =>
+                path = val.get('path')
+                if path  # path might not be set in case something went wrong (this has been hit in production)
+                    omit_prefix.push(path)
+            omit = (path) =>
+                if path.indexOf('-collect') != -1 and search.indexOf('collect') == -1
+                    # omit assignment collection folders unless explicitly searched (could cause confusion...)
+                    return true
+                for p in omit_prefix
+                    if path == p
+                        return true
+                    if path.slice(0, p.length+1) == p+'/'
+                        return true
+                return false
+            directories = (path for path in directories when not omit(path))
+            directories.sort()
+        return directories
 
     render : ->
         <Row>
@@ -117,8 +156,16 @@ HandoutsToolBar = rclass
                 />
             </Col>
             <Col md=4>
-              {<h5>(Omitting {@props.num_omitted} assignments)</h5> if @props.num_omitted}
+              {<h5>(Omitting {@props.num_omitted} handouts)</h5> if @props.num_omitted}
             </Col>
             <Col md=5>
+                <MultipleAddSearch
+                    add_selected   = {(added)=>console.log("ADDED: ", added)}
+                    do_search      = {(search)=>console.log(search)}
+                    is_searching   = {false}
+                    item_name      = {"handout"}
+                    err            = {undefined}
+                    search_results = {undefined}
+                 />
             </Col>
         </Row>

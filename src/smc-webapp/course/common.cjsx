@@ -7,7 +7,7 @@ misc = require('smc-util/misc')
 
 {Button, ButtonToolbar, ButtonGroup, Input, Row, Col} = require('react-bootstrap')
 
-{ErrorDisplay, Icon, Space, TimeAgo, Tip} = require('../r_misc')
+{ErrorDisplay, Icon, Space, TimeAgo, Tip, SearchInput} = require('../r_misc')
 
 exports.STEPS = (peer) ->
     if peer
@@ -367,7 +367,7 @@ exports.StudentAssignmentInfo = rclass
             </Col>
         </Row>
 
-###
+
 # Multiple result selector
 # use on_change and search to control the search bar
 exports.MultipleAddSearch = rclass
@@ -375,26 +375,23 @@ exports.MultipleAddSearch = rclass
         add_selected     : rtypes.func.isRequired   # Submit user selected results
         do_search        : rtypes.func.isRequired   # Submit search query
         is_searching     : rtypes.bool.isRequired   # whether or not it is asking the backend for the result of a search
+        placeholder      : rtypes.string
         err              : rtypes.object            # Search error
         search_results   : rtypes.object            # contents to put in the selection box after getting search result back
         real_time        : rtypes.bool              # Controls whether add_selected is called on submit or on change
 
     getDefaultProps : ->
-        err              : undefined
-        search           : ''
-        on_change        : @_on_search_change
-        search_results   : {}
-        real_time        : 'false'
+        real_time        : false
 
     getInitialState : ->
-        search         : '' # search query in box for adding new assignment
         selected_items : '' # currently selected options
 
     clear_and_focus_search_input : ->
-        @setState(search : '', add_select:undefined, add_selected:'')
-        @refs.assignment_add_input.getInputDOMNode().focus()
+        console.log('this one')
+        @setState(selected_items:undefined)
+        @refs.search_input.clear_and_focus_search_input()
 
-    assignment_add_search_button : ->
+    search_button : ->
         if @props.is_searching
             # Currently doing a search, so show a spinner
             <Button>
@@ -402,7 +399,7 @@ exports.MultipleAddSearch = rclass
             </Button>
         else if @props.search_results?
             # There is something in the selection box -- so only action is to clear the search box.
-            <Button onClick={@clear_and_focus_assignment_add_search_input}>
+            <Button onClick={@clear_and_focus_search_input}>
                 <Icon name="times-circle" />
             </Button>
         else
@@ -420,22 +417,18 @@ exports.MultipleAddSearch = rclass
             <Input type='select' ref="selector" size=5 onChange={=>@setState(selected_items : @refs.selector.getValue())}>
                 {@render_results_list()}
             </Input>
-            <Button disabled={not @state.selected_items} onClick={@props.add_selected}><Icon name="plus" /> Add selected assignment</Button>
+            <Button disabled={not @state.selected_items} onClick={@props.add_selected}><Icon name="plus" /> Add selected {@props.item_name}</Button>
         </div>
 
     render : ->
         <div>
-            <form onSubmit={@do_add_search}>
-                <Input
-                    ref         = 'assignment_add_input'
-                    type        = 'text'
-                    placeholder = "Add assignment by folder name (enter to see available folders)..."
-                    value       = {@state.add_search}
-                    buttonAfter = {@assignment_add_search_button()}
-                    onChange    = {=>@setState(add_select:undefined, add_search:@refs.assignment_add_input.getValue())}
-                    onKeyDown   = {(e)=>if e.keyCode==27 then @setState(add_search:'', add_select:undefined)}
-                />
-            </form>
-            {@render_add_selector() if @state.add_select?}
+            <SearchInput
+                ref         = 'search_input'
+                placeholder = "Add #{@props.item_name} by folder name (enter to see available folders)..."
+                on_submit   = {@props.do_search}
+                on_escape   = {=>@setState(search:'', selected_items:undefined)}
+                autoFocus   = {true}
+                buttonAfter = {@search_button()}
+            />
+            {@render_add_selector() if @props.search_results?}
          </div>
-###
