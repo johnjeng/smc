@@ -22,7 +22,7 @@ exports.HandoutsPanel = rclass
         handouts   : rtypes.object.isRequired
         students   : rtypes.object.isRequired
         user_map   : rtypes.object.isRequired
-        redux      : rtypes.object.isRequired
+        actions    : rtypes.object.isRequired
 
     getInitialState : ->
         show_deleted : false
@@ -81,7 +81,7 @@ exports.HandoutsPanel = rclass
                 num_omitted   = {num_omitted}
                 project_id    = {@props.project_id}
                 handouts      = {@props.handouts}
-                add_handouts  = {(paths)=>console.log(paths)}
+                add_handouts  = {(paths)=>paths.map(@props.actions.add_assignment)}
             />
 
         <Panel header={header}>

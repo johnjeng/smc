@@ -57,7 +57,6 @@ exports.order_list = (opts) ->
         compare_function : required
         include_deleted  : false
     {list, compare_function, include_deleted} = opts
-    console.log("LIST", list)
 
     x = list.filter (x) => x.deleted
     sorted_deleted = x.sort compare_function

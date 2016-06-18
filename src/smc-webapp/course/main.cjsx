@@ -610,6 +610,7 @@ exports.init_redux = init_redux = (redux, course_project_id, course_filename) ->
             course_filename.slice(0,i) + '-collect/' + path
 
         # Assignments
+        # TODO: Make a batch adder?
         add_assignment: (path) =>
             # Add an assignment to the course, which is defined by giving a directory in the project.
             # Where we collect homework that students have done (in teacher project)
@@ -1612,7 +1613,7 @@ CourseEditor = (name) -> rclass
 
     render_handouts : ->
         if @props.redux? and @props.assignments? and @props.user_map? and @props.students?
-            <HandoutsPanel redux={@props.redux} handouts={@props.assignments}
+            <HandoutsPanel actions={@props.redux.getActions(@props.name)} handouts={@props.assignments}
                 name={@props.name} project_id={@props.project_id} user_map={@props.user_map} students={@props.students} />
         else
             return <Loading />

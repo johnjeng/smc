@@ -388,10 +388,11 @@ exports.MultipleAddSearch = rclass
         show_selector : false
 
     componentWillReceiveProps : (newProps) ->
-        @setState(show_selector : newProps.search_results?)
+        @setState
+            show_selector : newProps.search_results? and newProps.search_results != @props.search_results
 
     clear_and_focus_search_input : ->
-        @setState(show_selector:false)
+        @setState(show_selector : false)
         @refs.search_input.clear_and_focus_search_input()
 
     search_button : ->
@@ -414,6 +415,7 @@ exports.MultipleAddSearch = rclass
     add_button_clicked : (e) ->
         e.preventDefault()
         @props.add_selected(@state.selected_items)
+        @clear_and_focus_search_input()
 
     render_results_list : ->
         for item in @props.search_results
@@ -431,13 +433,13 @@ exports.MultipleAddSearch = rclass
     render : ->
         <div>
             <SearchInput
-                ref         = 'search_input'
+                autoFocus     = {true}
+                ref           = 'search_input'
                 default_value = ''
-                placeholder = "Add #{@props.item_name} by folder name (enter to see available folders)..."
-                on_submit   = {@props.do_search}
-                on_escape   = {@clear_and_focus_search_input}
-                autoFocus   = {true}
-                buttonAfter = {@search_button()}
+                placeholder   = "Add #{@props.item_name} by folder name (enter to see available folders)..."
+                on_submit     = {@props.do_search}
+                on_escape     = {@clear_and_focus_search_input}
+                buttonAfter   = {@search_button()}
             />
             {@render_add_selector() if @state.show_selector}
          </div>
