@@ -10,8 +10,6 @@ immutable = require('immutable')
 # THESE NEED UNIT TESTS THANKS
 ###
 
-# This function is absolutely absurd...
-# Expects a trimmed and lower-cased search and immutable list of assignments
 # Does NOT sort the assignments.
 # To sort, pass the list to a sorter..
 # Expects :
