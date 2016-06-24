@@ -8,8 +8,8 @@ misc = require('smc-util/misc')
 {Button, ButtonToolbar, ButtonGroup, Input, Row, Col, Panel, Table} = require('react-bootstrap')
 
 # SMC and course components
-course_misc = require('./course_misc')
-styles = require('./common_styles')
+course_funcs = require('./pfunctions')
+styles = require('./styles')
 {MultipleAddSearch} = require('./common')
 {Icon, Tip, SearchInput, MarkdownInput} = require('../r_misc')
 
@@ -38,9 +38,9 @@ exports.HandoutsPanel = rclass
 
     # also used in assignments_panel
     compute_handouts_list : ->
-        list = course_misc.immutable_to_list(@props.all_handouts, 'handout_id')
+        list = course_funcs.immutable_to_list(@props.all_handouts, 'handout_id')
 
-        {list, num_omitted} = course_misc.compute_match_list
+        {list, num_omitted} = course_funcs.compute_match_list
             list        : list
             search_key  : 'path'
             search      : @state.search.trim()
@@ -48,7 +48,7 @@ exports.HandoutsPanel = rclass
         f = (a) -> [a.due_date ? 0, a.path?.toLowerCase()]
         compare = (a,b) => misc.cmp_array(f(a), f(b))
 
-        {list, num_deleted} = course_misc.order_list
+        {list, num_deleted} = course_funcs.order_list
             list             : list
             compare_function : compare
             include_deleted  : @state.show_deleted
@@ -127,32 +127,33 @@ HandoutsToolBar = rclass
             query      : "*#{search.trim()}*"
             cb         : (err, resp) =>
                 if err
-                    @setState(add_is_searching:false, err:err, add_select:undefined)
+                    @setState(add_is_searching:false, err:err, add_search_results:undefined)
                 else
-                    @setState(add_is_searching:false, add_search_results:@filter_results(resp.directories, search, @props.all_handouts))
+                    filtered_results = @filter_results(resp.directories, search, @props.all_handouts)
+                    @setState(add_is_searching:false, add_search_results:filtered_results)
 
     # TODO: see if this is common to assignments and students
-    filter_results : (directories, search, all_handouts) ->
+    # Filter directories based on contents of all_items
+    filter_results : (directories, search, all_items) ->
         if directories.length > 0
             # Omit any -collect directory (unless explicitly searched for).
             # Omit any currently assigned directory, or any subdirectory of any
             # assigned directory.
-            omit_prefix = []
-            all_handouts.map (val, key) =>
+            paths_to_omit = []
+
+            active_items = all_items.filter (val) => val.deleted
+            active_items.map (val) =>
                 path = val.get('path')
                 if path  # path might not be set in case something went wrong (this has been hit in production)
-                    omit_prefix.push(path)
-            omit = (path) =>
+                    paths_to_omit.push(path)
+
+            should_omit = (path) =>
                 if path.indexOf('-collect') != -1 and search.indexOf('collect') == -1
                     # omit assignment collection folders unless explicitly searched (could cause confusion...)
                     return true
-                for p in omit_prefix
-                    if path == p
-                        return true
-                    if path.slice(0, p.length+1) == p+'/'
-                        return true
-                return false
-            directories = (path for path in directories when not omit(path))
+                return paths_to_omit.includes(path)
+
+            directories = directories.filter (x) => not should_omit(x)
             directories.sort()
         return directories
 
@@ -259,7 +260,7 @@ StudentListForHandout = rclass
         handouts : rtypes.object
 
     render_students : ->
-        v = course_misc.immutable_to_list(@props.students, 'student_id')
+        v = course_funcs.immutable_to_list(@props.students, 'student_id')
         # fill in names, for use in sorting and searching (TODO: caching)
         v = (x for x in v when not x.deleted)
         for x in v
