@@ -10,7 +10,7 @@ misc = require('smc-util/misc')
 # SMC and course components
 course_funcs = require('./pfunctions')
 styles = require('./styles')
-{MultipleAddSearch} = require('./common')
+{FoldersToolbar} = require('./common')
 {Icon, Tip, SearchInput, MarkdownInput} = require('../r_misc')
 
 exports.HandoutsPanel = rclass
@@ -23,6 +23,8 @@ exports.HandoutsPanel = rclass
         students     : rtypes.object.isRequired
         user_map     : rtypes.object.isRequired
         actions      : rtypes.object.isRequired
+        store        : rtypes.object.isRequired
+        project_actions : rtypes.object.isRequired
 
     getInitialState : ->
         show_deleted : false
@@ -45,7 +47,7 @@ exports.HandoutsPanel = rclass
             search_key  : 'path'
             search      : @state.search.trim()
 
-        f = (a) -> [a.due_date ? 0, a.path?.toLowerCase()]
+        f = (a) -> [a.due_date ? 0, a.path?.toLowerCase()] # Changes for assignments
         compare = (a,b) => misc.cmp_array(f(a), f(b))
 
         {list, num_deleted} = course_funcs.order_list
@@ -73,13 +75,15 @@ exports.HandoutsPanel = rclass
         # Changes based on state changes so it just has to go in render
         {shown_handouts, num_omitted, num_deleted} = @compute_handouts_list()
         header =
-            <HandoutsToolBar
+            <FoldersToolbar
                 search        = {@state.search}
                 search_change = {(value) => @setState(search:value)}
                 num_omitted   = {num_omitted}
                 project_id    = {@props.project_id}
-                handouts      = {@props.all_handouts}
-                add_handouts  = {(paths)=>paths.map(@props.actions.add_assignment)}
+                items         = {@props.all_handouts}
+                add_folders   = {(paths)=>paths.map(@props.actions.add_assignment)}
+                item_name     = {"handout"}
+                plural_item_name = {"handouts"}
             />
 
         <Panel header={header}>
@@ -87,6 +91,7 @@ exports.HandoutsPanel = rclass
                 <Handout background={if i%2==0 then "#eee"}  key={handout.assignment_id}
                         handout={@props.all_handouts.get(handout.assignment_id)} project_id={@props.project_id}
                         students={@props.students} user_map={@props.user_map} actions={@props.actions}
+                        store={@props.store} open_directory={@props.project_actions.open_directory}
                 />}
             {@render_show_deleted(num_deleted) if num_deleted > 0}
         </Panel>
@@ -104,95 +109,27 @@ exports.HandoutsPanel.Header = rclass
             </span>
         </Tip>
 
-# State here is messy AF
-HandoutsToolBar = rclass
-    propTypes :
-        search        : rtypes.string
-        search_change : rtypes.func
-        num_omitted   : rtypes.number
-        project_id    : rtypes.string
-        all_handouts  : rtypes.object
-        add_handouts  : rtypes.func      # should expect an array of paths
-
-    getInitialState : ->
-        add_is_searching : false
-
-    # Should the client call really be here?
-    do_add_search : (search) ->
-        if @state.add_is_searching
-            return
-        @setState(add_is_searching:true)
-        salvus_client.find_directories
-            project_id : @props.project_id
-            query      : "*#{search.trim()}*"
-            cb         : (err, resp) =>
-                if err
-                    @setState(add_is_searching:false, err:err, add_search_results:undefined)
-                else
-                    filtered_results = @filter_results(resp.directories, search, @props.all_handouts)
-                    @setState(add_is_searching:false, add_search_results:filtered_results)
-
-    # TODO: see if this is common to assignments and students
-    # Filter directories based on contents of all_items
-    filter_results : (directories, search, all_items) ->
-        if directories.length > 0
-            # Omit any -collect directory (unless explicitly searched for).
-            # Omit any currently assigned directory, or any subdirectory of any
-            # assigned directory.
-            paths_to_omit = []
-
-            active_items = all_items.filter (val) => val.deleted
-            active_items.map (val) =>
-                path = val.get('path')
-                if path  # path might not be set in case something went wrong (this has been hit in production)
-                    paths_to_omit.push(path)
-
-            should_omit = (path) =>
-                if path.indexOf('-collect') != -1 and search.indexOf('collect') == -1
-                    # omit assignment collection folders unless explicitly searched (could cause confusion...)
-                    return true
-                return paths_to_omit.includes(path)
-
-            directories = directories.filter (x) => not should_omit(x)
-            directories.sort()
-        return directories
-
-    render : ->
-        <Row>
-            <Col md=3>
-                <SearchInput
-                    placeholder   = 'Search Bar'
-                    default_value = {@props.search}
-                    on_change     = {@props.search_change}
-                />
-            </Col>
-            <Col md=4>
-              {<h5>(Omitting {@props.num_omitted} handouts)</h5> if @props.num_omitted}
-            </Col>
-            <Col md=5>
-                <MultipleAddSearch
-                    add_selected   = {@props.add_handouts}
-                    do_search      = {@do_add_search}
-                    is_searching   = {@state.add_is_searching}
-                    item_name      = {"handout"}
-                    err            = {undefined}
-                    search_results = {@state.add_search_results}
-                 />
-            </Col>
-        </Row>
-
 Handout = rclass
     propTypes :
         handout             : rtypes.object
         background          : rtypes.string
+        store               : rtypes.object
+        actions             : rtypes.object
+        open_directory      : rtypes.func     # open_directory(path)
 
     getInitialState : ->
         more : false
         confirm_delete : false
 
+    open_handout_path : (e)->
+        e.preventDefault()
+        @props.open_directory(@props.handout.get('path'))
+
     render_more_header : ->
         <div>
-            <Button>Edit handout</Button>
+            <Button onClick={@open_handout_path}>
+                <Icon name="folder-open-o" /> Edit Handout
+            </Button>
         </div>
 
     render_handout_notes : ->
@@ -217,8 +154,7 @@ Handout = rclass
             <Col sm=12>
                 <Panel header={@render_more_header()}>
                     <StudentListForHandout handout={@props.handout} students={@props.students}
-                        user_map={@props.user_map} />
-
+                        user_map={@props.user_map} store={@props.store}, actions={@props.actions}/>
                     {@render_handout_notes()}
                 </Panel>
             </Col>
@@ -240,10 +176,7 @@ Handout = rclass
                             </a>
                         </h5>
                     </Col>
-                    <Col md=3>
-                        Distributed / Not Distributed
-                    </Col>
-                    <Col md=3>
+                    <Col md=6>
                         <Tip placement='left' title="Distribute" tip="Copy this folder to all your students projects.">
                             <Button>Distribute</Button>/<Button>Re-distribute</Button>
                         </Tip>
@@ -257,7 +190,9 @@ StudentListForHandout = rclass
     propTypes :
         user_map : rtypes.object
         students : rtypes.object
-        handouts : rtypes.object
+        handout : rtypes.object
+        store    : rtypes.object
+        actions  : rtypes.object
 
     render_students : ->
         v = course_funcs.immutable_to_list(@props.students, 'student_id')
@@ -280,24 +215,149 @@ StudentListForHandout = rclass
             @render_student_info(x.student_id, x)
 
     render_student_info : (id, student) ->
-        <tr key={id}>
-            <td>{student.first_name + ' ' + student.last_name}</td>
-            <td>{id}</td>
-            <td>{"Delete?"}</td>
-            <td>Table cell</td>
-        </tr>
+        <StudentHandoutInfo
+            actions = {@props.actions}
+            info = {@props.store.student_assignment_info(@props.student, @props.assignment)}
+            title = {misc.trunc_middle(@props.store.get_student_name(student_id), 40)}
+            student = {id}
+            assignment = {@props.handout}
+        />
 
     render : ->
-        <Table responsive>
-            <thead>
-                <tr>
-                    <th>Student</th>
-                    <th>Distribute to Student</th>
-                    <th>Delete Student Copy</th>
-                    <th>Push new version</th>
-                </tr>
-            </thead>
-            <tbody>
-                {@render_students()}
-            </tbody>
-        </Table>
+        <div>
+            StudentHandoutInfoHeader
+            {@render_students()}
+        </div>
+
+StudentHandoutInfo = rclass
+    displayName : "CourseEditor-StudentAssignmentInfo"
+
+    propTypes :
+        actions    : rtypes.object.isRequired
+        info       : rtypes.object.isRequired
+        title      : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired
+        student    : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired # required string (student_id) or student immutable js object
+        assignment : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired # required string (assignment_id) or assignment immutable js object
+
+    open : (type, assignment_id, student_id) ->
+        @props.actions.open_assignment(type, assignment_id, student_id)
+
+    copy : (type, assignment_id, student_id) ->
+        @props.actions.copy_assignment(type, assignment_id, student_id)
+
+    stop : (type, assignment_id, student_id) ->
+        @props.actions.stop_copying_assignment(type, assignment_id, student_id)
+
+    render_last_time : (name, time) ->
+        <div key='time' style={color:"#666"}>
+            (<BigTime date={time} />)
+        </div>
+
+    render_open_recopy_confirm : (name, open, copy, copy_tip, open_tip, placement) ->
+        key = "recopy_#{name}"
+        if @state[key]
+            v = []
+            v.push <Button key="copy_confirm" bsStyle="danger" onClick={=>@setState("#{key}":false);copy()}>
+                <Icon name="share-square-o" rotate={"180" if name.indexOf('ollect')!=-1}/> Yes, {name.toLowerCase()} again
+            </Button>
+            v.push <Button key="copy_cancel" onClick={=>@setState("#{key}":false);}>
+                 Cancel
+            </Button>
+            return v
+        else
+            <Button key="copy" bsStyle='warning' onClick={=>@setState("#{key}":true)}>
+                <Tip title={name} placement={placement}
+                    tip={<span>{copy_tip}</span>}>
+                    <Icon name='share-square-o' rotate={"180" if name.indexOf('ollect')!=-1}/> {name}...
+                </Tip>
+            </Button>
+
+    render_open_recopy : (name, open, copy, copy_tip, open_tip) ->
+        placement = if name == 'Return' then 'left' else 'right'
+        <ButtonToolbar key='open_recopy'>
+            {@render_open_recopy_confirm(name, open, copy, copy_tip, open_tip, placement)}
+            <Button key='open'  onClick={open}>
+                <Tip title="Open assignment" placement={placement} tip={open_tip}>
+                    <Icon name="folder-open-o" /> Open
+                </Tip>
+            </Button>
+        </ButtonToolbar>
+
+    render_open_copying : (name, open, stop) ->
+        if name == "Return"
+            placement = 'left'
+        <ButtonGroup key='open_copying'>
+            <Button key="copy" bsStyle='success' disabled={true}>
+                <Icon name="circle-o-notch" spin /> {name}ing
+            </Button>
+            <Button key="stop" bsStyle='danger' onClick={stop}>
+                <Icon name="times" />
+            </Button>
+            <Button key='open'  onClick={open}>
+                <Icon name="folder-open-o" /> Open
+            </Button>
+        </ButtonGroup>
+
+    render_copy : (name, copy, copy_tip) ->
+        if name == "Return"
+            placement = 'left'
+        <Tip key="copy" title={name} tip={copy_tip} placement={placement} >
+            <Button onClick={copy} bsStyle={'primary'}>
+                <Icon name="share-square-o" rotate={"180" if name.indexOf('ollect')!=-1}/> {name}
+            </Button>
+        </Tip>
+
+    render_error : (name, error) ->
+        if typeof(error) != 'string'
+            error = misc.to_json(error)
+        if error.indexOf('No such file or directory') != -1
+            error = 'Somebody may have moved the folder that should have contained the assignment.\n' + error
+        else
+            error = "Try to #{name.toLowerCase()} again:\n" + error
+        <ErrorDisplay key='error' error={error} style={maxHeight: '140px', overflow:'auto'}/>
+
+    render_last : (name, obj, type, info, enable_copy, copy_tip, open_tip) ->
+        open = => @open(type, info.assignment_id, info.student_id)
+        copy = => @copy(type, info.assignment_id, info.student_id)
+        stop = => @stop(type, info.assignment_id, info.student_id)
+        obj ?= {}
+        v = []
+        if enable_copy
+            if obj.start
+                v.push(@render_open_copying(name, open, stop))
+            else if obj.time
+                v.push(@render_open_recopy(name, open, copy, copy_tip, open_tip))
+            else
+                v.push(@render_copy(name, copy, copy_tip))
+        if obj.time
+            v.push(@render_last_time(name, obj.time))
+        if obj.error
+            v.push(@render_error(name, obj.error))
+        return v
+
+    render : ->
+        width = 4
+        <Row style={borderTop:'1px solid #aaa', paddingTop:'5px', paddingBottom: '5px'}>
+            <Col md=2 key="title">
+                {@props.title}
+            </Col>
+            <Col md=10 key="rest">
+                <Row>
+                    <Col md={width} key='last_assignment'>
+                        {@render_last('Distribute', @props.info.last_assignment, 'distributed', @props.info, true,
+                           "Copy the handout from your project to this student's project.",
+                           "Open the student's copy of this handout directly in their project.  You will be able to see them type, chat with them, answer questions, etc.")}
+                    </Col>
+                    <Col md={width} key='collect'>
+                        {@render_last('Collect', @props.info.last_collect, 'collected', @props.info, @props.info.last_assignment?,
+                           "Copy the assignment from your student's project back to your project so you can grade their work.",
+                           "Open the copy of your student's work in your own project, so that you can grade their work.")}
+                    </Col>
+                    <Col md={width} key='return_graded'>
+                        {@render_last('Return', @props.info.last_return_graded, 'graded', @props.info, info.last_collect?,
+                           "Copy the graded assignment back to your student's project.",
+                           "Open the copy of your student's work that you returned to them. This opens the returned assignment directly in their project.")}
+                    </Col>
+                </Row>
+            </Col>
+        </Row>

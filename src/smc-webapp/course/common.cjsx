@@ -1,6 +1,7 @@
 # SMC libraries
 misc = require('smc-util/misc')
 {defaults, required} = misc
+{salvus_client} = require('../salvus_client')
 
 # React libraries
 {React, rclass, rtypes, Actions}  = require('../smc-react')
@@ -9,6 +10,7 @@ misc = require('smc-util/misc')
 
 {ErrorDisplay, Icon, Space, TimeAgo, Tip, SearchInput} = require('../r_misc')
 
+# Move these to funcs file
 exports.STEPS = (peer) ->
     if peer
         return ['assignment', 'collect', 'peer_assignment', 'peer_collect', 'return_graded']
@@ -369,7 +371,7 @@ exports.StudentAssignmentInfo = rclass
 
 # Multiple result selector
 # use on_change and search to control the search bar
-exports.MultipleAddSearch = rclass
+exports.MultipleAddSearch = MultipleAddSearch = rclass
     propTypes :
         add_selected     : rtypes.func.isRequired   # Submit user selected results
         do_search        : rtypes.func.isRequired   # Submit search query
@@ -443,3 +445,83 @@ exports.MultipleAddSearch = rclass
             />
             {@render_add_selector() if @state.show_selector}
          </div>
+
+# State here is messy AF
+# Definitely not a good abstraction.
+# Purely for code reuse (bad reason..)
+# Complects FilterSearchBar and AddSearchBar...
+exports.FoldersToolbar = rclass
+    propTypes :
+        search        : rtypes.string
+        search_change : rtypes.func      # search_change(current_search_value)
+        num_omitted   : rtypes.number
+        project_id    : rtypes.string
+        items         : rtypes.object.isRequired
+        add_folders   : rtypes.func      # add_folders (Iterable<T>)
+        item_name     : rtypes.string
+        plural_item_name : rtypes.string
+
+    getInitialState : ->
+        add_is_searching : false
+
+    do_add_search : (search) ->
+        if @state.add_is_searching
+            return
+        @setState(add_is_searching:true)
+        salvus_client.find_directories
+            project_id : @props.project_id
+            query      : "*#{search.trim()}*"
+            cb         : (err, resp) =>
+                if err
+                    @setState(add_is_searching:false, err:err, add_search_results:undefined)
+                else
+                    filtered_results = @filter_results(resp.directories, search, @props.items)
+                    @setState(add_is_searching:false, add_search_results:filtered_results)
+
+    # TODO: see if this is common to assignments and students
+    # Filter directories based on contents of all_items
+    filter_results : (directories, search, all_items) ->
+        if directories.length > 0
+            # Omit any -collect directory (unless explicitly searched for).
+            # Omit any currently assigned directory
+            paths_to_omit = []
+
+            active_items = all_items.filter (val) => not val.deleted
+            active_items.map (val) =>
+                path = val.get('path')
+                if path  # path might not be set in case something went wrong (this has been hit in production)
+                    paths_to_omit.push(path)
+
+            should_omit = (path) =>
+                if path.indexOf('-collect') != -1 and search.indexOf('collect') == -1
+                    # omit assignment collection folders unless explicitly searched (could cause confusion...)
+                    return true
+                return paths_to_omit.includes(path)
+
+            directories = directories.filter (x) => not should_omit(x)
+            directories.sort()
+        return directories
+
+    render : ->
+        <Row>
+            <Col md=3>
+                <SearchInput
+                    placeholder   = {"Find #{@props.plural_item_name}..."}
+                    default_value = {@props.search}
+                    on_change     = {@props.search_change}
+                />
+            </Col>
+            <Col md=4>
+              {<h5>(Omitting {@props.num_omitted} {@props.plural_item_name})</h5> if @props.num_omitted}
+            </Col>
+            <Col md=5>
+                <MultipleAddSearch
+                    add_selected   = {@props.add_folders}
+                    do_search      = {@do_add_search}
+                    is_searching   = {@state.add_is_searching}
+                    item_name      = {@props.item_name}
+                    err            = {undefined}
+                    search_results = {@state.add_search_results}
+                 />
+            </Col>
+        </Row>

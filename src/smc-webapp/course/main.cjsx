@@ -1614,7 +1614,9 @@ CourseEditor = (name) -> rclass
     render_handouts : ->
         if @props.redux? and @props.assignments? and @props.user_map? and @props.students?
             <HandoutsPanel actions={@props.redux.getActions(@props.name)} all_handouts={@props.assignments}
-                name={@props.name} project_id={@props.project_id} user_map={@props.user_map} students={@props.students} />
+                project_id={@props.project_id} user_map={@props.user_map} students={@props.students}
+                store={@props.redux.getStore(@props.name)} project_actions={@props.redux.getProjectActions(@props.project_id)}
+                />
         else
             return <Loading />
 
