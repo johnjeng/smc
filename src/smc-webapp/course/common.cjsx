@@ -371,6 +371,7 @@ exports.StudentAssignmentInfo = rclass
 
 # Multiple result selector
 # use on_change and search to control the search bar
+# Coupled with Assignments Panel and Handouts Panel
 exports.MultipleAddSearch = MultipleAddSearch = rclass
     propTypes :
         add_selected     : rtypes.func.isRequired   # Submit user selected results

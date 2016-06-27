@@ -10,14 +10,13 @@ misc = require('smc-util/misc')
 # SMC and course components
 course_funcs = require('./pfunctions')
 styles = require('./styles')
-{FoldersToolbar} = require('./common')
+{BigTime, FoldersToolbar} = require('./common')
 {Icon, Tip, SearchInput, MarkdownInput} = require('../r_misc')
 
 exports.HandoutsPanel = rclass
     displayName : 'Course-editor-HandoutsPanel'
 
     propTypes :
-        name         : rtypes.string.isRequired
         project_id   : rtypes.string.isRequired
         all_handouts : rtypes.object.isRequired
         students     : rtypes.object.isRequired
@@ -60,7 +59,7 @@ exports.HandoutsPanel = rclass
     render_show_deleted : (num_deleted) ->
         if @state.show_deleted
             <Button style={styles.show_hide_deleted} onClick={=>@setState(show_deleted:false)}>
-                <Tip placement='left' title="Hide deleted" tip="Handouts are never really deleted.  Click this button so that deleted assignments aren't included at the bottom of the list.">
+                <Tip placement='left' title="Hide deleted" tip="Handouts are never really deleted.  Click this button so that deleted handouts aren't included at the bottom of the list.">
                     Hide {num_deleted} deleted handouts
                 </Tip>
             </Button>
@@ -125,6 +124,7 @@ Handout = rclass
         e.preventDefault()
         @props.open_directory(@props.handout.get('path'))
 
+    # TODO: Add behavior like the identical function inside Assignment Component defined in assignments_panel
     render_more_header : ->
         <div>
             <Button onClick={@open_handout_path}>
@@ -135,16 +135,16 @@ Handout = rclass
     render_handout_notes : ->
         <Row key='note' style={styles.note}>
             <Col xs=2>
-                <Tip title="Notes about this handout" tip="Record notes about this handout here. These notes are only visible to you, not to your students.  Put any instructions to students about assignments in a file in the directory that contains the assignment.">
+                <Tip title="Notes about this handout" tip="Record notes about this handout here. These notes are only visible to you, not to your students.  Put any instructions to students about handouts in a file in the directory that contains the handout.">
                     Private Handout Notes<br /><span style={color:"#666"}></span>
                 </Tip>
             </Col>
             <Col xs=10>
                 <MarkdownInput
                     rows          = 6
-                    placeholder   = 'Private notes about this assignment (not visible to students)'
+                    placeholder   = 'Private notes about this handout (not visible to students)'
                     default_value = {@props.handout.get('note')}
-                    on_save       = {(value)=>@props.actions.set_assignment_note(@props.assignment, value)}
+                    on_save       = {(value)=>@props.actions.set_assignment_note(@props.handout, value)}
                 />
             </Col>
         </Row>
@@ -216,37 +216,91 @@ StudentListForHandout = rclass
 
     render_student_info : (id, student) ->
         <StudentHandoutInfo
+            key = {id}
             actions = {@props.actions}
-            info = {@props.store.student_assignment_info(@props.student, @props.assignment)}
-            title = {misc.trunc_middle(@props.store.get_student_name(student_id), 40)}
+            info = {@props.store.student_assignment_info(id, @props.handout)}
+            title = {misc.trunc_middle(@props.store.get_student_name(id), 40)}
             student = {id}
-            assignment = {@props.handout}
+            handout = {@props.handout}
         />
 
     render : ->
         <div>
-            StudentHandoutInfoHeader
+            <StudentHandoutInfoHeader
+                key        = 'header'
+                title      = "Student"
+            />
             {@render_students()}
         </div>
 
+StudentHandoutInfoHeader = rclass
+    displayName : "CourseEditor-StudentHandoutInfoHeader"
+
+    propTypes :
+        title      : rtypes.string.isRequired
+
+    render_col: (step_number, key, width) ->
+        switch key
+            when 'last_handout'
+                title = 'Distribute to Student'
+                tip   = 'This column gives the status of making homework available to students, and lets you copy homework to one student at a time.'
+            when 'collect'
+                title = 'Another option'
+                tip   = 'This column gives status information about collecting homework from students, and lets you collect from one student at a time.'
+            when 'grade'
+                title = '???'
+                tip   = 'Record homework grade" tip="Use this column to record the grade the student received on the handout. Once the grade is recorded, you can return the handout.  You can also export grades to a file in the Settings tab.'
+
+            when 'return_graded'
+                title = 'Hmmmm?'
+                tip   = 'This column gives status information about when you returned homework to the students.  Once you have entered a grade, you can return the handout.'
+                placement = 'left'
+        <Col md={width} key={key}>
+            <Tip title={title} tip={tip}>
+                <b>{step_number}. {title}</b>
+            </Tip>
+        </Col>
+
+
+    render_headers: ->
+        w = 3
+        <Row>
+            {@render_col(1, 'last_handout', w)}
+            {@render_col(2, 'collect', w)}
+            {@render_col(3, 'grade', w)}
+            {@render_col(4, 'return_graded', w)}
+        </Row>
+
+    render : ->
+        <Row style={borderBottom:'2px solid #aaa'} >
+            <Col md=2 key='title'>
+                <Tip title={@props.title} tip={if @props.title=="Handout" then "This column gives the directory name of the handout." else "This column gives the name of the student."}>
+                    <b>{@props.title}</b>
+                </Tip>
+            </Col>
+            <Col md=10 key="rest">
+                {@render_headers()}
+            </Col>
+        </Row>
+
 StudentHandoutInfo = rclass
-    displayName : "CourseEditor-StudentAssignmentInfo"
+    displayName : "CourseEditor-StudentHandoutInfo"
 
     propTypes :
         actions    : rtypes.object.isRequired
         info       : rtypes.object.isRequired
         title      : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired
         student    : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired # required string (student_id) or student immutable js object
-        assignment : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired # required string (assignment_id) or assignment immutable js object
+        handout    : rtypes.oneOfType([rtypes.string,rtypes.object]).isRequired # required string (handout_id) or handout immutable js object
 
-    open : (type, assignment_id, student_id) ->
-        @props.actions.open_assignment(type, assignment_id, student_id)
+    open : (type, handout_id, student_id) ->
+        @props.actions.open_assignment(type, handout_id, student_id)
 
-    copy : (type, assignment_id, student_id) ->
-        @props.actions.copy_assignment(type, assignment_id, student_id)
+    copy : (type, handout_id, student_id) ->
+        @props.actions.copy_assignment(type, handout_id, student_id)
 
-    stop : (type, assignment_id, student_id) ->
-        @props.actions.stop_copying_assignment(type, assignment_id, student_id)
+    stop : (type, handout_id, student_id) ->
+        @props.actions.stop_copying_assignment(type, handout_id, student_id)
 
     render_last_time : (name, time) ->
         <div key='time' style={color:"#666"}>
@@ -277,7 +331,7 @@ StudentHandoutInfo = rclass
         <ButtonToolbar key='open_recopy'>
             {@render_open_recopy_confirm(name, open, copy, copy_tip, open_tip, placement)}
             <Button key='open'  onClick={open}>
-                <Tip title="Open assignment" placement={placement} tip={open_tip}>
+                <Tip title="Open handout" placement={placement} tip={open_tip}>
                     <Icon name="folder-open-o" /> Open
                 </Tip>
             </Button>
@@ -311,7 +365,7 @@ StudentHandoutInfo = rclass
         if typeof(error) != 'string'
             error = misc.to_json(error)
         if error.indexOf('No such file or directory') != -1
-            error = 'Somebody may have moved the folder that should have contained the assignment.\n' + error
+            error = 'Somebody may have moved the folder that should have contained the handout.\n' + error
         else
             error = "Try to #{name.toLowerCase()} again:\n" + error
         <ErrorDisplay key='error' error={error} style={maxHeight: '140px', overflow:'auto'}/>
@@ -336,27 +390,17 @@ StudentHandoutInfo = rclass
         return v
 
     render : ->
-        width = 4
+        width = 12
         <Row style={borderTop:'1px solid #aaa', paddingTop:'5px', paddingBottom: '5px'}>
             <Col md=2 key="title">
                 {@props.title}
             </Col>
             <Col md=10 key="rest">
                 <Row>
-                    <Col md={width} key='last_assignment'>
-                        {@render_last('Distribute', @props.info.last_assignment, 'distributed', @props.info, true,
+                    <Col md={width} key='last_handout'>
+                        {@render_last('Distribute', @props.info.last_assignment, 'assigned', @props.info, true,
                            "Copy the handout from your project to this student's project.",
                            "Open the student's copy of this handout directly in their project.  You will be able to see them type, chat with them, answer questions, etc.")}
-                    </Col>
-                    <Col md={width} key='collect'>
-                        {@render_last('Collect', @props.info.last_collect, 'collected', @props.info, @props.info.last_assignment?,
-                           "Copy the assignment from your student's project back to your project so you can grade their work.",
-                           "Open the copy of your student's work in your own project, so that you can grade their work.")}
-                    </Col>
-                    <Col md={width} key='return_graded'>
-                        {@render_last('Return', @props.info.last_return_graded, 'graded', @props.info, info.last_collect?,
-                           "Copy the graded assignment back to your student's project.",
-                           "Open the copy of your student's work that you returned to them. This opens the returned assignment directly in their project.")}
                     </Col>
                 </Row>
             </Col>
