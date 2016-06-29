@@ -259,7 +259,8 @@ Handout = rclass
         <Button key='handout'
                 bsStyle  = {bsStyle}
                 onClick  = {=>@setState(copy_confirm_handout:true, copy_confirm:true)}
-                disabled = {@state.copy_confirm} >
+                disabled = {@state.copy_confirm}
+                style    = {margin:'4px', paddingTop:'6px', paddingBottom:'4px'}>
             <Icon name="share-square-o" /> Distribute...
         </Button>
 
@@ -296,6 +297,9 @@ Handout = rclass
                              tip="Copy the files for this handout from this project to all other student projects.">
                             {@render_handout_button(status.handout)}
                         </Tip>
+                        <span style={color:'#666', marginLeft:'5px'}>
+                            ({status.handout}/{status.handout + status.not_handout} received)
+                        </span>
                         {@render_copy_all(status)}
                     </Col>
                 </Row>

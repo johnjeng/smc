@@ -1248,6 +1248,16 @@ exports.init_redux = init_redux = (redux, course_project_id, course_filename) ->
                 set   : {deleted: false}
                 where : {handout_id: handout.get('handout_id'), table: 'handouts'}
 
+        _set_handout_field: (handout, name, val) =>
+            store = get_store()
+            return if not store?
+            handout = store.get_handout(handout)
+            where      = {table:'handouts', handout_id:handout.get('handout_id')}
+            @_update(set:{"#{name}":val}, where:where)
+
+        set_handout_note: (handout, note) =>
+            @_set_handout_field(handout, 'note', note)
+
         _handout_finish_copy: (handout, student, err) =>
             if student? and handout?
                 store = get_store(); student = store.get_student(student); handout = store.get_handout(handout)
