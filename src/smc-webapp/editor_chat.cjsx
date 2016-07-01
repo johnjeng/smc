@@ -75,8 +75,9 @@ class ChatActions extends Actions
     set_input: (input) =>
         @setState(input:input)
 
-    save_position: (position) =>
-        @setState(position:position)
+    save_scroll_state: (position, height) =>
+        if height != 0
+            @setState(position:position, height:height)
 
 # boilerplate setting up actions, stores, sync'd file, etc.
 syncdbs = {}
@@ -293,9 +294,10 @@ ChatRoom = (name) -> rclass
 
     reduxProps :
         "#{name}" :
-            messages : rtypes.immutable
-            input    : rtypes.string
-            position : rtypes.number
+            messages    : rtypes.immutable
+            input       : rtypes.string
+            position    : rtypes.number
+            height      : rtypes.number
         users :
             user_map : rtypes.immutable
         account :
@@ -369,11 +371,13 @@ ChatRoom = (name) -> rclass
         padding      : "0"
         marginTop    : "5px"
 
+    #should not be called if not in chat tab
     scroll_to_bottom: ->
         if @refs.log_container?
             node = ReactDOM.findDOMNode(@refs.log_container)
             node.scrollTop = node.scrollHeight
-            @props.redux.getActions(@props.name).save_position(node.scrollTop)
+            @props.redux.getActions(@props.name).save_scroll_state(node.scrollTop, node.scrollTop)
+            console.log('stats: ', @props.position, @props.height)
             @_scrolled = false
 
     scroll_to_position: ->
@@ -382,14 +386,26 @@ ChatRoom = (name) -> rclass
             node = ReactDOM.findDOMNode(@refs.log_container)
             node.scrollTop = @props.position
 
+    #should not be called if not in chat tab
     on_scroll: (e) ->
         @_scrolled = true
         node = ReactDOM.findDOMNode(@refs.log_container)
-        @props.redux.getActions(@props.name).save_position(node.scrollTop)
+        @props.redux.getActions(@props.name).save_scroll_state(node.scrollTop, node.scrollTop)
+        console.log('stats: ', @props.position, @props.height)
         e.preventDefault()
 
     componentDidMount: ->
         @scroll_to_position()
+
+    componentWillReceiveProps: (next) ->
+        if @props.messages != next.messages and @props.position == @props.height
+            @_scrolled = false
+
+    #componentWillUpdate: (next_props) ->
+        #if @refs.log_container
+            #node = ReactDOM.findDOMNode(@refs.log_container)
+            #if (node.scrollHeight + 10 > node.scrollTop + node.offsetHeight > node.scrollHeight - 10)
+                #@_scrolled = false
 
     componentDidUpdate: ->
         if not @_scrolled
