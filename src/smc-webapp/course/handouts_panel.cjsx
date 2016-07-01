@@ -264,6 +264,41 @@ Handout = rclass
             <Icon name="share-square-o" /> Distribute...
         </Button>
 
+    delete_handout : ->
+        @props.actions.delete_handout(@props.handout)
+        @setState(confirm_delete:false)
+
+    undelete_handout : ->
+        @props.actions.undelete_handout(@props.handout)
+
+    render_confirm_delete : ->
+        <Alert bsStyle='warning' key='confirm_delete'>
+            Are you sure you want to delete this handout (you can undelete it later)?
+            <br/> <br/>
+            <ButtonToolbar>
+                <Button key='yes' onClick={@delete_handout} bsStyle='danger'>
+                    <Icon name="trash" /> Delete
+                </Button>
+                <Button key='no' onClick={=>@setState(confirm_delete:false)}>
+                    Cancel
+                </Button>
+            </ButtonToolbar>
+        </Alert>
+
+    render_delete_button : ->
+        if @props.handout.get('deleted')
+            <Tip key='delete' placement='left' title="Undelete handout" tip="Make the handout visible again in the handout list and in student grade lists.">
+                <Button onClick={@undelete_handout}>
+                    <Icon name="trash-o" /> Undelete
+                </Button>
+            </Tip>
+        else
+            <Tip key='delete' placement='left' title="Delete handout" tip="Deleting this handout removes it from the handout list and student grade lists, but does not delete any files off of disk.  You can always undelete an handout later by showing it using the 'show deleted handouts' button.">
+                <Button onClick={=>@setState(confirm_delete:true)} disabled={@state.confirm_delete}>
+                    <Icon name="trash" /> Delete...
+                </Button>
+            </Tip>
+
     render_more : ->
         <Row key='more'>
             <Col sm=12>
@@ -300,7 +335,13 @@ Handout = rclass
                         <span style={color:'#666', marginLeft:'5px'}>
                             ({status.handout}/{status.handout + status.not_handout} received)
                         </span>
-                        {@render_copy_all(status)}
+                        <span className='pull-right'>
+                            {@render_delete_button()}
+                        </span>
+                        <Row>
+                            {@render_copy_all(status)}
+                            {@render_confirm_delete() if @state.confirm_delete}
+                        </Row>
                     </Col>
                 </Row>
                 {@render_more() if @state.more}

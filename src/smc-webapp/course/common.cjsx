@@ -384,7 +384,7 @@ exports.MultipleAddSearch = MultipleAddSearch = rclass
 
     getDefaultProps : ->
         real_time        : false
-        item_name        : 'results'
+        item_name        : 'result'
 
     getInitialState : ->
         selected_items : '' # currently selected options
@@ -430,8 +430,25 @@ exports.MultipleAddSearch = MultipleAddSearch = rclass
             <Input type='select' multiple ref="selector" size=5 rows=10 onChange={=>@setState(selected_items : @refs.selector.getValue())}>
                 {@render_results_list()}
             </Input>
-            <Button disabled={not @state.selected_items} onClick={@add_button_clicked}><Icon name="plus" /> Add selected {@props.item_name}</Button>
+            <ButtonToolbar>
+                {@render_add_selector_button()}
+                <Button onClick={@clear_and_focus_search_input}>
+                    Cancel
+                </Button>
+            </ButtonToolbar>
         </div>
+
+    render_add_selector_button : ->
+        num_items_selected = @state.selected_items?.length ? 0
+        btn_text = switch @props.search_results.length
+            when 0 then "No #{@props.item_name} found"
+            when 1 then "Add #{@props.item_name}"
+            else switch num_items_selected
+                when 0 then "Select #{@props.item_name} above"
+                when 1 then "Add selected #{@props.item_name}"
+                else "Add #{num_items_selected} #{@props.item_name}s"
+        disabled = @props.search_results.length == 0 or (@props.search_results.length >= 2 and num_items_selected == 0)
+        <Button disabled={disabled} onClick={@add_button_clicked}><Icon name="plus" /> {btn_text}</Button>
 
     render : ->
         <div>
