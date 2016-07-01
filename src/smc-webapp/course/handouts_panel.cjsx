@@ -260,8 +260,11 @@ Handout = rclass
                 bsStyle  = {bsStyle}
                 onClick  = {=>@setState(copy_confirm_handout:true, copy_confirm:true)}
                 disabled = {@state.copy_confirm}
-                style    = {margin:'4px', paddingTop:'6px', paddingBottom:'4px'}>
-            <Icon name="share-square-o" /> Distribute...
+                style    = {@outside_button_style}>
+            <Tip title={<span>Handout: <Icon name='user-secret'/> You <Icon name='long-arrow-right' />  <Icon name='users' /> Students </span>}
+                 tip="Copy the files for this handout from this project to all other student projects.">
+                <Icon name="share-square-o" /> Distribute...
+            </Tip>
         </Button>
 
     delete_handout : ->
@@ -288,13 +291,13 @@ Handout = rclass
     render_delete_button : ->
         if @props.handout.get('deleted')
             <Tip key='delete' placement='left' title="Undelete handout" tip="Make the handout visible again in the handout list and in student grade lists.">
-                <Button onClick={@undelete_handout}>
+                <Button onClick={@undelete_handout} style={@outside_button_style}>
                     <Icon name="trash-o" /> Undelete
                 </Button>
             </Tip>
         else
             <Tip key='delete' placement='left' title="Delete handout" tip="Deleting this handout removes it from the handout list and student grade lists, but does not delete any files off of disk.  You can always undelete an handout later by showing it using the 'show deleted handouts' button.">
-                <Button onClick={=>@setState(confirm_delete:true)} disabled={@state.confirm_delete}>
+                <Button onClick={=>@setState(confirm_delete:true)} disabled={@state.confirm_delete} style={@outside_button_style}>
                     <Icon name="trash" /> Delete...
                 </Button>
             </Tip>
@@ -309,6 +312,11 @@ Handout = rclass
                 </Panel>
             </Col>
         </Row>
+
+    outside_button_style :
+        margin        : '4px'
+        paddingTop    : '6px'
+        paddingBottom : '4px'
 
     render : ->
         status = @props.store.get_handout_status(@props.handout)
@@ -328,10 +336,7 @@ Handout = rclass
                         </h5>
                     </Col>
                     <Col md=6>
-                        <Tip title={<span>Handout: <Icon name='user-secret'/> You <Icon name='long-arrow-right' />  <Icon name='users' /> Students </span>}
-                             tip="Copy the files for this handout from this project to all other student projects.">
-                            {@render_handout_button(status.handout)}
-                        </Tip>
+                        {@render_handout_button(status.handout)}
                         <span style={color:'#666', marginLeft:'5px'}>
                             ({status.handout}/{status.handout + status.not_handout} received)
                         </span>
@@ -406,17 +411,6 @@ StudentHandoutInfoHeader = rclass
             when 'last_handout'
                 title = 'Distribute to Student'
                 tip   = 'This column gives the status of making homework available to students, and lets you copy homework to one student at a time.'
-            when 'collect'
-                title = 'Another option'
-                tip   = 'This column gives status information about collecting homework from students, and lets you collect from one student at a time.'
-            when 'grade'
-                title = '???'
-                tip   = 'Record homework grade" tip="Use this column to record the grade the student received on the handout. Once the grade is recorded, you can return the handout.  You can also export grades to a file in the Settings tab.'
-
-            when 'return_graded'
-                title = 'Hmmmm?'
-                tip   = 'This column gives status information about when you returned homework to the students.  Once you have entered a grade, you can return the handout.'
-                placement = 'left'
         <Col md={width} key={key}>
             <Tip title={title} tip={tip}>
                 <b>{step_number}. {title}</b>
@@ -425,12 +419,9 @@ StudentHandoutInfoHeader = rclass
 
 
     render_headers: ->
-        w = 3
+        w = 12
         <Row>
             {@render_col(1, 'last_handout', w)}
-            {@render_col(2, 'collect', w)}
-            {@render_col(3, 'grade', w)}
-            {@render_col(4, 'return_graded', w)}
         </Row>
 
     render : ->
